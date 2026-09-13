@@ -18,7 +18,9 @@ export const useAuthStore = create((set, get) => ({
   checkAuth: async () => {
     try {
       const res = await axiosInstance.get("/auth/check");
+
       set({ authUser: res.data });
+
       get().connectSocket();
     } catch (error) {
       set({ authUser: null });
@@ -29,12 +31,18 @@ export const useAuthStore = create((set, get) => ({
 
   signup: async (data) => {
     set({ isSigningUp: true });
+
     try {
       const res = await axiosInstance.post("/auth/signup", data);
+
       set({ authUser: res.data });
+
       get().connectSocket();
     } catch (error) {
-      console.error("Signup error:", error.response?.data?.message);
+      console.error(
+        "Signup error:",
+        error.response?.data?.message || error.message
+      );
     } finally {
       set({ isSigningUp: false });
     }
@@ -42,12 +50,18 @@ export const useAuthStore = create((set, get) => ({
 
   login: async (data) => {
     set({ isLoggingIn: true });
+
     try {
       const res = await axiosInstance.post("/auth/login", data);
+
       set({ authUser: res.data });
+
       get().connectSocket();
     } catch (error) {
-      console.error("Login error:", error.response?.data?.message);
+      console.error(
+        "Login error:",
+        error.response?.data?.message || error.message
+      );
     } finally {
       set({ isLoggingIn: false });
     }
@@ -56,22 +70,34 @@ export const useAuthStore = create((set, get) => ({
   logout: async () => {
     try {
       await axiosInstance.post("/auth/logout");
+
       set({ authUser: null });
+
       get().disconnectSocket();
     } catch (error) {
-      console.error("Logout error:", error.response?.data?.message);
+      console.error(
+        "Logout error:",
+        error.response?.data?.message || error.message
+      );
     }
   },
 
   connectSocket: () => {
     const { authUser, socket } = get();
+
+    // Don't connect if user isn't logged in
+    // or socket is already connected
     if (!authUser || socket?.connected) return;
 
     const newSocket = io(BASE_URL, {
-      query: { userId: authUser._id },
+      query: {
+        userId: authUser._id,
+      },
     });
 
-    newSocket.connect();
+    // io() automatically connects, so newSocket.connect()
+    // is not needed here.
+
     set({ socket: newSocket });
 
     newSocket.on("getOnlineUsers", (userIds) => {
@@ -80,6 +106,15 @@ export const useAuthStore = create((set, get) => ({
   },
 
   disconnectSocket: () => {
-    if (get().socket?.connected) get().socket.disconnect();
+    const socket = get().socket;
+
+    if (socket?.connected) {
+      socket.disconnect();
+    }
+
+    set({
+      socket: null,
+      onlineUsers: [],
+    });
   },
 }));
