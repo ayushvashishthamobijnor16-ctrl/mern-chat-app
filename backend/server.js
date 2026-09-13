@@ -10,18 +10,30 @@ import { app, server } from "./src/lib/socket.js";
 
 const PORT = process.env.PORT || 5001;
 
+// Middleware
 app.use(express.json());
 app.use(cookieParser());
+
+// CORS
 app.use(
   cors({
-    origin: ["http://localhost:5173", process.env.CLIENT_URL],
+    origin: process.env.CLIENT_URL,
     credentials: true,
   })
 );
 
+// Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 
+// Test route
+app.get("/", (req, res) => {
+  res.status(200).json({
+    message: "MERN Chat API is running",
+  });
+});
+
+// Start server
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   connectDB();
