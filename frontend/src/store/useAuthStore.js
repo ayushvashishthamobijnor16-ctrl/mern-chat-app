@@ -9,9 +9,11 @@ const BASE_URL =
 
 export const useAuthStore = create((set, get) => ({
   authUser: null,
+
   isSigningUp: false,
   isLoggingIn: false,
   isCheckingAuth: true,
+
   onlineUsers: [],
   socket: null,
 
@@ -19,23 +21,33 @@ export const useAuthStore = create((set, get) => ({
     try {
       const res = await axiosInstance.get("/auth/check");
 
-      set({ authUser: res.data });
+      set({
+        authUser: res.data,
+      });
 
       get().connectSocket();
     } catch (error) {
-      set({ authUser: null });
+      set({
+        authUser: null,
+      });
     } finally {
-      set({ isCheckingAuth: false });
+      set({
+        isCheckingAuth: false,
+      });
     }
   },
 
   signup: async (data) => {
-    set({ isSigningUp: true });
+    set({
+      isSigningUp: true,
+    });
 
     try {
       const res = await axiosInstance.post("/auth/signup", data);
 
-      set({ authUser: res.data });
+      set({
+        authUser: res.data,
+      });
 
       get().connectSocket();
     } catch (error) {
@@ -44,17 +56,23 @@ export const useAuthStore = create((set, get) => ({
         error.response?.data?.message || error.message
       );
     } finally {
-      set({ isSigningUp: false });
+      set({
+        isSigningUp: false,
+      });
     }
   },
 
   login: async (data) => {
-    set({ isLoggingIn: true });
+    set({
+      isLoggingIn: true,
+    });
 
     try {
       const res = await axiosInstance.post("/auth/login", data);
 
-      set({ authUser: res.data });
+      set({
+        authUser: res.data,
+      });
 
       get().connectSocket();
     } catch (error) {
@@ -63,7 +81,9 @@ export const useAuthStore = create((set, get) => ({
         error.response?.data?.message || error.message
       );
     } finally {
-      set({ isLoggingIn: false });
+      set({
+        isLoggingIn: false,
+      });
     }
   },
 
@@ -71,9 +91,11 @@ export const useAuthStore = create((set, get) => ({
     try {
       await axiosInstance.post("/auth/logout");
 
-      set({ authUser: null });
-
       get().disconnectSocket();
+
+      set({
+        authUser: null,
+      });
     } catch (error) {
       console.error(
         "Logout error:",
@@ -85,30 +107,47 @@ export const useAuthStore = create((set, get) => ({
   connectSocket: () => {
     const { authUser, socket } = get();
 
-    // Don't connect if user isn't logged in
-    // or socket is already connected
-    if (!authUser || socket?.connected) return;
+    if (!authUser) return;
+
+    if (socket?.connected) return;
+
+    console.log("Connecting Socket.IO...");
 
     const newSocket = io(BASE_URL, {
       query: {
         userId: authUser._id,
       },
+
+      withCredentials: true,
     });
 
-    // io() automatically connects, so newSocket.connect()
-    // is not needed here.
+    newSocket.on("connect", () => {
+      console.log("Socket connected:", newSocket.id);
+    });
 
-    set({ socket: newSocket });
+    newSocket.on("connect_error", (error) => {
+      console.error("Socket connection error:", error.message);
+    });
+
+    newSocket.on("disconnect", () => {
+      console.log("Socket disconnected");
+    });
 
     newSocket.on("getOnlineUsers", (userIds) => {
-      set({ onlineUsers: userIds });
+      set({
+        onlineUsers: userIds,
+      });
+    });
+
+    set({
+      socket: newSocket,
     });
   },
 
   disconnectSocket: () => {
     const socket = get().socket;
 
-    if (socket?.connected) {
+    if (socket) {
       socket.disconnect();
     }
 
